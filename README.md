@@ -1,344 +1,199 @@
 # 🧠 RAG-Powered Domain Expert System
 
-![RAG Expert System Hero](docs/images/hero.png)
-
-![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-009688.svg)
-![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4-412991.svg)
-![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)
-![Code Coverage](https://img.shields.io/badge/coverage-85%25-yellowgreen.svg)
-
-Enterprise-grade Retrieval-Augmented Generation system for intelligent document analysis and question answering.
-
-[Features](#features) | [Quick Start](#quick-start) | [Demo](#demo) | [Documentation](#support) | [Contributing](#contributing)
+A production-ready document intelligence system where you upload any document (PDF, TXT, DOCX) and ask questions in plain English. The system uses vector similarity search (FAISS) to find the most relevant content and generates accurate, grounded answers using GPT-4o — with source citations and zero hallucinations. Answers come only from your uploaded documents.
 
 ---
 
-## Overview
+## ✨ Features
 
-Transform your documents into an intelligent knowledge base. This RAG system combines semantic search with large language models to provide accurate, source-cited answers without hallucinations.
+- **📄 Multi-format Upload** — Drag & drop PDF, TXT, and DOCX files (up to 50MB)
+- **🔍 RAG Pipeline** — Intelligent chunking, embedding, and retrieval via FAISS
+- **💬 Streaming Chat** — Real-time, word-by-word responses via Server-Sent Events
+- **📌 Source Citations** — Every answer shows which document and page it came from
+- **⚙️ Configurable** — Adjust model, chunk size, top-K, and temperature from the UI
+- **🔒 Privacy-first** — API keys stored in session only, never persisted
+- **🐳 Docker Ready** — One command to run the full stack
+- **📱 Responsive** — Works on desktop and mobile
 
-**Perfect for:**
+---
 
-- Research teams analyzing large document collections
-- Enterprises building internal knowledge bases
-- Educational institutions creating learning assistants
-- Legal/compliance teams searching regulatory documents
+## 🏗️ Architecture
 
-## Features
-
-### Core Capabilities
-
-- **Semantic Search**: OpenAI embeddings with vector similarity for precise document retrieval
-- **AI-Powered Answers**: GPT-4 Turbo generates contextual responses with source citations
-- **Multi-Format Support**: Process PDF, DOCX, TXT, and Markdown files
-- **Modern Interface**: Beautiful Streamlit dashboard with real-time chat
-- **RESTful API**: FastAPI backend with auto-generated documentation
-- **Docker Ready**: One-command deployment with Docker Compose
-- **Enterprise Security**: API key management and secure document handling
-- **Analytics**: Track usage patterns and query performance
-
-### Technical Features
-
-- **Chunking Strategy**: Smart text segmentation with configurable overlap
-- **Vector Database**: Efficient in-memory storage with persistence
-- **Async Processing**: Non-blocking document uploads and queries
-- **Error Handling**: Comprehensive error tracking and recovery
-- **Logging**: Structured logging for debugging and monitoring
-
-## Quick Start
-
-### Prerequisites
-
-- Python 3.10 or higher
-- OpenAI API key ([Get one here](https://platform.openai.com/api-keys))
-- 4GB RAM minimum
-
-### Installation
-
-#### Option 1: Quick Setup (Windows)
-
-```batch
-# 1. Clone repository
-git clone https://github.com/mohamednoorulnaseem/RAG-Powered-Domain-Expert-System.git
-cd RAG-Powered-Domain-Expert-System
-
-# 2. Run automated setup
-setup.bat
-
-# 3. Configure API key
-copy .env.example .env
-# Edit .env and add: OPENAI_API_KEY=your-key-here
-
-# 4. Start system
-start.bat
+```
+┌─────────────────────────────────────────────────────────┐
+│                 React Frontend (:3000)                  │
+│  ┌──────────┐  ┌───────────────┐  ┌──────────────────┐  │
+│  │ Document  │  │    Chat       │  │    Settings      │  │
+│  │ Sidebar   │  │  Interface    │  │    Panel         │  │
+│  └─────┬────┘  └───────┬───────┘  └────────┬─────────┘  │
+└────────┼────────────────┼──────────────────┼────────────┘
+         │   REST + SSE   │                  │
+         ▼                ▼                  ▼
+┌─────────────────────────────────────────────────────────┐
+│               FastAPI Backend (:8000)                    │
+│                                                         │
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────────┐  │
+│  │  Document     │  │    RAG       │  │  Embeddings   │  │
+│  │  Processor    │──│  Pipeline    │──│  Manager      │  │
+│  │  (LangChain)  │  │  (FAISS)    │  │  (Ada-002)    │  │
+│  └──────────────┘  └──────┬───────┘  └───────────────┘  │
+│                           │                             │
+└───────────────────────────┼─────────────────────────────┘
+                            │
+              ┌─────────────┼─────────────┐
+              ▼             ▼             ▼
+        ┌──────────┐  ┌──────────┐  ┌──────────┐
+        │ /uploads │  │  FAISS   │  │ OpenAI   │
+        │ (files)  │  │  Index   │  │ API      │
+        └──────────┘  │(in-mem)  │  │(GPT-4o + │
+                      └──────────┘  │ Ada-002) │
+                                    └──────────┘
 ```
 
-#### Option 2: Docker (All Platforms)
+---
+
+## 🚀 Quick Start
+
+### Option 1: Docker (Recommended)
 
 ```bash
-# 1. Clone repository
+# 1. Clone the repo
 git clone https://github.com/mohamednoorulnaseem/RAG-Powered-Domain-Expert-System.git
 cd RAG-Powered-Domain-Expert-System
 
-# 2. Configure environment
+# 2. (Optional) Set your API key in .env
 cp .env.example .env
-# Edit .env with your API key
+# Edit .env and add your OPENAI_API_KEY — or set it later via the UI
 
-# 3. Start with Docker Compose
-docker-compose up -d
+# 3. Start both services
+docker-compose up --build
+
+# Frontend → http://localhost:3000
+# Backend  → http://localhost:8000
 ```
 
-#### Option 3: Manual Setup
+### Option 2: Run Locally
 
+**Backend:**
 ```bash
-# 1. Clone repository
-git clone https://github.com/mohamednoorulnaseem/RAG-Powered-Domain-Expert-System.git
-cd RAG-Powered-Domain-Expert-System
+cd backend
 
-# 2. Create virtual environment
+# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+venv\Scripts\activate          # Windows
+# source venv/bin/activate     # macOS/Linux
 
-# 3. Install dependencies
+# Install dependencies
 pip install -r requirements.txt
 
-# 4. Configure environment
-cp .env.example .env
-# Edit .env with your API key
+# (Optional) Set API key
+set OPENAI_API_KEY=sk-your-key  # Windows
+# export OPENAI_API_KEY=sk-your-key  # macOS/Linux
 
-# 5. Start API
-uvicorn api.main:app --host 0.0.0.0 --port 8001 &
-
-# 6. Start Dashboard
-streamlit run dashboard/app.py
+# Start the server
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### Access Points
+**Frontend:**
+```bash
+cd frontend
 
-- **Dashboard**: <http://localhost:8501>
-- **API**: <http://localhost:8001>
-- **API Docs**: <http://localhost:8001/docs>
+# Install dependencies
+npm install
 
-## Usage
-
-### 1. Upload Documents
-
-```python
-# Via Dashboard: Drag and drop files
-# Via API:
-import requests
-
-files = {'file': open('document.pdf', 'rb')}
-response = requests.post('http://localhost:8001/api/v1/documents/upload', files=files)
+# Start dev server
+npm run dev
 ```
 
-### 2. Ask Questions
+Open **http://localhost:3000** in your browser.
 
-```python
-# Via Dashboard: Type in chat interface
-# Via API:
-query = {
-    "question": "What are the key findings?",
-    "top_k": 5
-}
-response = requests.post('http://localhost:8001/api/v1/query', json=query)
+---
+
+## 📖 How to Use
+
+1. **Set your API Key** — Click the ⚙️ settings icon (top right) and paste your OpenAI API key
+2. **Upload Documents** — Drag & drop PDF, TXT, or DOCX files into the left sidebar
+3. **Ask Questions** — Type any question in the chat box and press Enter
+4. **View Sources** — Expand the citations below each answer to see exactly where the information came from
+5. **Adjust Settings** — Tweak the model, retrieval parameters, and temperature to fine-tune responses
+
+---
+
+## 🔌 API Endpoints
+
+| Method   | Endpoint              | Description                      |
+|----------|-----------------------|----------------------------------|
+| `GET`    | `/health`             | Health check                     |
+| `POST`   | `/upload`             | Upload & process a document      |
+| `GET`    | `/documents`          | List all uploaded documents      |
+| `DELETE` | `/documents/{id}`     | Delete a document                |
+| `POST`   | `/chat`               | Send message (non-streaming)     |
+| `POST`   | `/chat/stream`        | Send message (SSE streaming)     |
+| `GET`    | `/chat/history`       | Get conversation history         |
+| `DELETE` | `/chat/history`       | Clear conversation history       |
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer          | Technology                         |
+|----------------|------------------------------------|
+| Frontend       | React 19, Tailwind CSS v4, Vite    |
+| Backend        | Python 3.11, FastAPI               |
+| LLM            | OpenAI GPT-4o / GPT-4o-mini       |
+| Embeddings     | OpenAI text-embedding-ada-002      |
+| Vector Store   | FAISS (in-memory)                  |
+| Doc Processing | LangChain (PyPDF, docx2txt)        |
+| Streaming      | Server-Sent Events (SSE)           |
+| Containers     | Docker + docker-compose            |
+
+---
+
+## 📁 Project Structure
+
 ```
-
-### 3. Get Cited Answers
-
-```json
-{
-  "answer": "The key findings include...",
-  "sources": [
-    {
-      "content": "Relevant excerpt from document",
-      "metadata": { "source": "document.pdf", "page": 5 },
-      "similarity_score": 0.92
-    }
-  ]
-}
-```
-
-## Architecture
-
-```text
-User --> Streamlit Dashboard --> FastAPI Backend --> Document Processor
-                                      |                    |
-                                      v                    v
-                                 Query Engine <----> Vector Store
-                                      |                    ^
-                                      v                    |
-                                  GPT-4 LLM         OpenAI Embeddings
-```
-
-### Component Details
-
-- **API Layer**: FastAPI with async endpoints
-- **Document Processing**: LangChain + PyPDF2/python-docx
-- **Embeddings**: OpenAI text-embedding-3-large (3072 dimensions)
-- **Vector Store**: In-memory FAISS with persistence
-- **LLM**: GPT-4 Turbo with temperature=0.2 for consistency
-- **Frontend**: Streamlit with custom components
-
-## Project Structure
-
-```text
-rag-expert-system/
-├── .github/workflows/      # CI/CD pipelines
-├── api/                    # FastAPI application
-├── core/                   # RAG components
-├── dashboard/              # Streamlit app
-├── config/                 # Configuration management
-├── tests/                  # Test suite
-├── docs/                   # Documentation
-├── scripts/                # Utility scripts
-├── docker-compose.yml      # Docker orchestration
-├── Dockerfile.api          # API container
-├── Dockerfile.dashboard    # Dashboard container
-├── requirements.txt        # Python dependencies
+RAG-Powered-Domain-Expert-System/
+├── backend/
+│   ├── main.py                 # FastAPI application & endpoints
+│   ├── rag_pipeline.py         # Core RAG pipeline (FAISS + LLM)
+│   ├── document_processor.py   # Document loading & chunking
+│   ├── embeddings.py           # OpenAI embeddings manager
+│   ├── requirements.txt        # Python dependencies
+│   └── uploads/                # Uploaded document storage
+├── frontend/
+│   ├── src/
+│   │   ├── App.jsx             # Root component (3-panel layout)
+│   │   ├── main.jsx            # React entry point
+│   │   ├── index.css           # Global styles & design system
+│   │   └── components/
+│   │       ├── ChatInterface.jsx     # Chat messages & input
+│   │       ├── DocumentSidebar.jsx   # Upload & document list
+│   │       ├── MessageBubble.jsx     # Individual message rendering
+│   │       └── SettingsPanel.jsx     # Configuration controls
+│   ├── index.html
+│   ├── vite.config.js
+│   └── package.json
+├── Dockerfile.backend
+├── Dockerfile.frontend
+├── docker-compose.yml
+├── .env.example
+├── .gitignore
 └── README.md
 ```
 
-## Configuration
+---
 
-Edit `.env` to customize:
+## ⚙️ Environment Variables
 
-```env
-# OpenAI
-OPENAI_API_KEY=sk-your-key-here
-EMBEDDING_MODEL=text-embedding-3-large
-LLM_MODEL=gpt-4-turbo-preview
-
-# Chunking
-CHUNK_SIZE=1000
-CHUNK_OVERLAP=200
-
-# Search
-TOP_K_RESULTS=5
-SIMILARITY_THRESHOLD=0.7
-
-# Performance
-MAX_WORKERS=4
-BATCH_SIZE=10
-```
-
-## API Reference
-
-### Upload Document
-
-```bash
-POST /api/v1/documents/upload
-Content-Type: multipart/form-data
-
-Response:
-{
-  "id": "doc_123",
-  "filename": "document.pdf",
-  "status": "processed"
-}
-```
-
-### Query
-
-```bash
-POST /api/v1/query
-Content-Type: application/json
-
-{
-  "question": "What is...?",
-  "top_k": 5
-}
-
-Response:
-{
-  "answer": "...",
-  "sources": [...],
-  "processing_time": 1.23
-}
-```
-
-For complete API documentation, visit `/docs` endpoint.
-
-## Testing
-
-```bash
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=. --cov-report=html
-
-# Run specific test suite
-pytest tests/test_api.py -v
-
-# Run integration tests only
-pytest -m integration
-```
-
-## Deployment
-
-### Docker Deployment
-
-```bash
-docker-compose up -d
-```
-
-### Cloud Deployment
-
-See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for:
-
-- AWS (ECS/Fargate)
-- Google Cloud (Cloud Run)
-- Azure (Container Instances)
-- Kubernetes manifests
-
-## Contributing
-
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-**Quick contribution workflow:**
-
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'feat: add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
-
-## Roadmap
-
-- [ ] Multi-language support
-- [ ] Advanced analytics dashboard
-- [ ] Fine-tuning support for domain-specific models
-- [ ] Integration with Pinecone/Weaviate
-- [ ] Batch processing for large document sets
-- [ ] User authentication and multi-tenancy
-- [ ] Custom embedding models
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Author
-
-### Mohamed Noorul Naseem
-
-- Email: <noorulnaseem11@gmail.com>
-- GitHub: [mohamednoorulnaseem](https://github.com/mohamednoorulnaseem)
-- LinkedIn: [mohamednoorulnaseem](https://www.linkedin.com/in/mohamednoorulnaseem)
-
-## 📧 Support
-
-- **Quick Start**: [docs/QUICK_START.md](docs/QUICK_START.md)
-- **Troubleshooting**: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
-- **API Reference**: [docs/API.md](docs/API.md)
-- **Deployment**: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
-- **Issues**: [GitHub Issues](https://github.com/mohamednoorulnaseem/RAG-Powered-Domain-Expert-System/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/mohamednoorulnaseem/RAG-Powered-Domain-Expert-System/discussions)
+| Variable         | Default | Description                              |
+|------------------|---------|------------------------------------------|
+| `OPENAI_API_KEY` | —       | OpenAI API key (or set via UI)           |
+| `MAX_FILE_SIZE_MB` | `50`  | Maximum upload file size in MB           |
+| `CHUNK_SIZE`     | `1000`  | Default characters per text chunk        |
+| `CHUNK_OVERLAP`  | `200`   | Overlap between consecutive chunks       |
 
 ---
 
-### Built with Python, FastAPI, Streamlit & OpenAI
+## 📄 License
 
-_If you find this project helpful, please consider giving it a star!_
+MIT License — see [LICENSE](LICENSE) for details.

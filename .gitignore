@@ -1,59 +1,35 @@
-# Python
+# Dependencies
+node_modules/
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual Environment
+*.pyc
+.venv/
 venv/
-ENV/
 env/
 
-# Environment Variables
+# Environment
 .env
-.env.local
+
+# Uploads
+backend/uploads/*
+!backend/uploads/.gitkeep
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
+
+# Build
+frontend/dist/
+*.egg-info/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Project Specific
-uploads/*
-!uploads/.gitkeep
-data/*
-!data/.gitkeep
-logs/*
-!logs/.gitkeep
+# Docker
 *.log
 
-# Vector Store
+# FAISS
+*.faiss
 *.pkl
-chroma_db/
-
-# Temporary Files
-*.tmp
-*.bak
-temp/

@@ -1,55 +1,40 @@
-version: "3.8"
+version: '3.8'
 
 services:
-  api:
+  backend:
     build:
       context: .
-      dockerfile: Dockerfile.api
-    container_name: rag-api
+      dockerfile: Dockerfile.backend
+    container_name: rag-backend
     ports:
-      - "8001:8001"
+      - "8000:8000"
+    volumes:
+      - uploads_data:/app/uploads
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-large}
-      - LLM_MODEL=${LLM_MODEL:-gpt-4-turbo-preview}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-50}
       - CHUNK_SIZE=${CHUNK_SIZE:-1000}
       - CHUNK_OVERLAP=${CHUNK_OVERLAP:-200}
-    volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-    networks:
-      - rag-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 10s
 
-  dashboard:
+  frontend:
     build:
       context: .
-      dockerfile: Dockerfile.dashboard
-    container_name: rag-dashboard
+      dockerfile: Dockerfile.frontend
+    container_name: rag-frontend
     ports:
-      - "8501:8501"
-    environment:
-      - API_URL=http://api:8001
+      - "3000:3000"
     depends_on:
-      - api
-    networks:
-      - rag-network
+      backend:
+        condition: service_healthy
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-networks:
-  rag-network:
-    driver: bridge
 
 volumes:
-  data:
-  logs:
+  uploads_data:
+    driver: local
