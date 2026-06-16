@@ -216,7 +216,7 @@ class VectorStore:
         """
         start_time = datetime.now()
         top_k = top_k or self.settings.top_k_results
-        min_score = min_score or self.settings.similarity_threshold
+        min_score = min_score if min_score is not None else self.settings.similarity_threshold
         
         if not self.entries:
             return SearchResults(

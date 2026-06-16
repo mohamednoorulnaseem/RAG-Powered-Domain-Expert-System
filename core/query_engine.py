@@ -87,7 +87,21 @@ class QueryEngine:
     def __init__(self, vector_store: Optional[VectorStore] = None):
         self.settings = get_settings()
         self.vector_store = vector_store or VectorStore()
-        self.client = OpenAI(api_key=self.settings.openai_api_key)
+        # Auto-routing fallback to Groq if OpenAI key is default or missing
+        import os
+        api_key = self.settings.openai_api_key
+        base_url = os.getenv("OPENAI_BASE_URL", None)
+        
+        groq_key = os.getenv("GROQ_API_KEY", "")
+        if groq_key and (not api_key or "sk-your-api-key" in api_key):
+            logger.info("No valid OpenAI API key detected. Falling back to Groq provider for LLM completions.")
+            api_key = groq_key
+            base_url = "https://api.groq.com/openai/v1"
+            # Update settings object llm_model dynamically to Llama model
+            self.settings.llm_model = "llama-3.1-8b-instant"
+            os.environ["LLM_MODEL"] = "llama-3.1-8b-instant"
+            
+        self.client = OpenAI(api_key=api_key, base_url=base_url)
         
         # In-memory history: session_id -> list of message dicts
         self.history: Dict[str, List[Dict[str, str]]] = {}
@@ -225,7 +239,7 @@ class QueryEngine:
         search_results = self.vector_store.search(
             query=question,
             top_k=candidate_k,
-            min_score=min_score,
+            min_score=min_score or 0.0,
             hybrid_weight=hybrid_weight
         )
         search_time = search_results.search_time_ms
