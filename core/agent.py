@@ -1,5 +1,6 @@
 import os
 import time
+from datetime import datetime
 from typing import List, Dict, Any, TypedDict, Optional
 from loguru import logger
 
@@ -29,6 +30,7 @@ class AgentState(TypedDict):
     answer_relevance_score: float
     attempts: int
     history: List[Dict[str, Any]]
+    job_id: Optional[str]
 
 class RagasEvaluator:
     """Handles on-the-fly evaluation using Ragas"""
@@ -199,6 +201,28 @@ class SelfCorrectingRAGAgent:
         
         logger.info(f"Scores -> Faithfulness: {faithfulness:.4f}, Relevancy: {relevancy:.4f} (Attempt {state['attempts']})")
         
+        # Log attempt to database
+        job_id = state.get("job_id")
+        if job_id:
+            from core.db import SessionLocal, Attempt
+            db = SessionLocal()
+            try:
+                attempt = Attempt(
+                    job_id=job_id,
+                    attempt_number=state["attempts"],
+                    query_text=state["query"],
+                    faithfulness_score=faithfulness,
+                    relevance_score=relevancy,
+                    generated_answer=state["generation"]
+                )
+                db.add(attempt)
+                db.commit()
+                logger.info(f"Logged attempt {state['attempts']} to database.")
+            except Exception as e:
+                logger.error(f"Failed to log attempt to database: {e}")
+            finally:
+                db.close()
+                
         return {
             "faithfulness_score": faithfulness,
             "answer_relevance_score": relevancy
@@ -267,7 +291,29 @@ Rewritten search query:"""
 
     # --- Run Pipeline ---
 
-    def run(self, query: str) -> Dict[str, Any]:
+    def run(self, query: str, job_id: Optional[str] = None) -> Dict[str, Any]:
+        # Initialize DB job if job_id is provided
+        if job_id:
+            from core.db import SessionLocal, Job, init_db
+            init_db()  # Ensure tables exist
+            db = SessionLocal()
+            try:
+                job = db.query(Job).filter(Job.job_id == job_id).first()
+                if not job:
+                    job = Job(
+                        job_id=job_id,
+                        status="RUNNING",
+                        original_query=query
+                    )
+                    db.add(job)
+                else:
+                    job.status = "RUNNING"
+                db.commit()
+            except Exception as e:
+                logger.error(f"Failed to initialize Job in DB: {e}")
+            finally:
+                db.close()
+
         initial_state = {
             "query": query,
             "original_query": query,
@@ -277,8 +323,43 @@ Rewritten search query:"""
             "faithfulness_score": 0.0,
             "answer_relevance_score": 0.0,
             "attempts": 0,
-            "history": []
+            "history": [],
+            "job_id": job_id
         }
         
-        final_state = self.graph.invoke(initial_state)
-        return final_state
+        try:
+            final_state = self.graph.invoke(initial_state)
+            
+            # Update DB job on success
+            if job_id:
+                from core.db import SessionLocal, Job
+                db = SessionLocal()
+                try:
+                    job = db.query(Job).filter(Job.job_id == job_id).first()
+                    if job:
+                        job.status = "COMPLETED"
+                        job.final_answer = final_state["generation"]
+                        job.completed_at = datetime.utcnow()
+                        db.commit()
+                except Exception as e:
+                    logger.error(f"Failed to update Job success in DB: {e}")
+                finally:
+                    db.close()
+                    
+            return final_state
+        except Exception as e:
+            # Update DB job on failure
+            if job_id:
+                from core.db import SessionLocal, Job
+                db = SessionLocal()
+                try:
+                    job = db.query(Job).filter(Job.job_id == job_id).first()
+                    if job:
+                        job.status = "FAILED"
+                        job.completed_at = datetime.utcnow()
+                        db.commit()
+                except Exception as e:
+                    logger.error(f"Failed to update Job failure in DB: {e}")
+                finally:
+                    db.close()
+            raise e
