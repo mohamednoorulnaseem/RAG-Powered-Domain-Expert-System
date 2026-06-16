@@ -4,8 +4,7 @@
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-009688.svg)
 ![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4-412991.svg)
-![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)
-![Code Coverage](https://img.shields.io/badge/coverage-85%25-yellowgreen.svg)
+[![CI/CD Pipeline](https://github.com/mohamednoorulnaseem/RAG-Powered-Domain-Expert-System/actions/workflows/ci.yml/badge.svg)](https://github.com/mohamednoorulnaseem/RAG-Powered-Domain-Expert-System/actions)
 
 RAG pipeline for document Q&A — LangChain · FAISS · FastAPI · Docker
 
