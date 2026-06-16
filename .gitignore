@@ -57,3 +57,7 @@ chroma_db/
 *.tmp
 *.bak
 temp/
+
+# Coverage
+.coverage
+coverage.xml
