@@ -85,7 +85,7 @@ Once initialized:
     {
       "content": "Relevant excerpt from document",
       "metadata": { "source": "document.pdf", "page": 5 },
-      "similarity_score": 0.92
+      "similarity_score": 0.92  # actual score varies per query
     }
   ]
 }
