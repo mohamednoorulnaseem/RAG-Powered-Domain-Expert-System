@@ -40,3 +40,8 @@ pandas>=2.2.0
 numpy>=1.26.0
 # explicitly add scipy and other heavy hitters that might need recent versions
 scipy>=1.12.0
+
+# Evaluation & Graph Execution
+ragas>=0.1.0
+datasets>=2.16.0
+langgraph>=0.0.10
