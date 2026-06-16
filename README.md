@@ -1,6 +1,5 @@
 # 🧠 RAG-Powered Domain Expert System
 
-![RAG Expert System Hero](docs/images/hero.png)
 
 ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
