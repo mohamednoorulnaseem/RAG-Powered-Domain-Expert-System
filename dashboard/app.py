@@ -275,8 +275,9 @@ def upload_document(file):
         return {"error": str(e)}
 
 def query_documents(question, top_k=5, min_score=0.5, session_id=None, hybrid_weight=0.5):
-    """Query documents via API"""
+    """Query documents via API with async polling"""
     try:
+        # Step 1: Submit the query
         response = requests.post(
             f"{API_URL}/query",
             json={
@@ -287,7 +288,37 @@ def query_documents(question, top_k=5, min_score=0.5, session_id=None, hybrid_we
                 "hybrid_weight": hybrid_weight
             }
         )
-        return response.json()
+        
+        if response.status_code != 200:
+            return {"error": f"Failed to submit query: {response.text}"}
+            
+        init_data = response.json()
+        job_id = init_data.get("job_id")
+        if not job_id:
+            return {"error": "No job_id returned from query endpoint"}
+            
+        # Step 2: Poll for results
+        import time
+        max_polls = 120  # 3 minutes max
+        poll_interval = 1.5
+        
+        for _ in range(max_polls):
+            res_response = requests.get(f"{API_URL}/result/{job_id}")
+            if res_response.status_code != 200:
+                return {"error": f"Failed to get job result: {res_response.text}"}
+                
+            result_data = res_response.json()
+            status = result_data.get("status")
+            
+            if status == "COMPLETED":
+                return result_data
+            elif status == "FAILED":
+                return {"error": "Query execution failed on worker."}
+                
+            time.sleep(poll_interval)
+            
+        return {"error": "Query execution timed out."}
+        
     except Exception as e:
         return {"error": str(e)}
 

@@ -83,6 +83,35 @@ class HealthResponse(BaseModel):
     components: dict
 
 
+class QueryAsyncResponse(BaseModel):
+    """Response model for async queries"""
+    job_id: str
+    status: str
+
+
+class AttemptInfoModel(BaseModel):
+    """Attempt information model"""
+    attempt_number: int
+    query_text: str
+    faithfulness_score: Optional[float] = None
+    relevance_score: Optional[float] = None
+    generated_answer: str
+
+
+class ResultResponseModel(BaseModel):
+    """Complete response model for query results"""
+    job_id: str
+    status: str
+    original_query: str
+    answer: Optional[str] = None
+    citations: List[dict] = []
+    confidence: str = "Unknown"
+    metrics: dict = {}
+    created_at: str
+    completed_at: Optional[str] = None
+    attempts: List[AttemptInfoModel]
+
+
 # ========================================
 # App Initialization
 # ========================================
@@ -326,30 +355,149 @@ async def delete_document(doc_id: str):
     }
 
 
-@app.post("/query", response_model=QueryResponseModel, tags=["Query"])
+@app.post("/query", response_model=QueryAsyncResponse, tags=["Query"])
 async def query_documents(request: QueryRequest):
     """
-    Ask a question about your documents
-    
-    The system will:
-    1. Search for relevant document chunks
-    2. Generate an answer using GPT-4
-    3. Provide citations and confidence score
+    Ask a question about your documents asynchronously (triggers Celery task)
     """
+    import uuid
+    from core.db import SessionLocal, Job, init_db
+    from core.celery_worker import run_agent_task
+    
+    init_db()  # Ensure DB tables are initialized
+    
+    job_id = str(uuid.uuid4())
+    
+    # Create DB entry
+    db = SessionLocal()
     try:
-        response = query_engine.query(
-            question=request.question,
-            top_k=request.top_k,
-            min_score=request.min_score,
-            session_id=request.session_id,
-            hybrid_weight=request.hybrid_weight
+        job = Job(
+            job_id=job_id,
+            status="PENDING",
+            original_query=request.question
         )
-        
-        return response.to_dict()
-        
+        db.add(job)
+        db.commit()
     except Exception as e:
-        logger.error(f"Query error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Failed to create DB job: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Database error occurred.")
+    finally:
+        db.close()
+        
+    # Trigger Celery task
+    try:
+        run_agent_task.delay(job_id, request.question)
+    except Exception as e:
+        logger.error(f"Failed to trigger Celery task: {e}")
+        # Update status to FAILED
+        db = SessionLocal()
+        try:
+            job = db.query(Job).filter(Job.job_id == job_id).first()
+            if job:
+                job.status = "FAILED"
+                db.commit()
+        except:
+            pass
+        finally:
+            db.close()
+        raise HTTPException(status_code=500, detail="Failed to queue task.")
+        
+    return QueryAsyncResponse(job_id=job_id, status="PENDING")
+
+
+@app.get("/result/{job_id}", response_model=ResultResponseModel, tags=["Query"])
+async def get_job_result(job_id: str):
+    """
+    Retrieve execution status and result for a given job_id
+    """
+    from core.db import SessionLocal, Job, Attempt
+    db = SessionLocal()
+    try:
+        job = db.query(Job).filter(Job.job_id == job_id).first()
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found.")
+            
+        attempts = db.query(Attempt).filter(Attempt.job_id == job_id).order_by(Attempt.attempt_number).all()
+        
+        attempts_data = [
+            AttemptInfoModel(
+                attempt_number=a.attempt_number,
+                query_text=a.query_text,
+                faithfulness_score=a.faithfulness_score,
+                relevance_score=a.relevance_score,
+                generated_answer=a.generated_answer
+            )
+            for a in attempts
+        ]
+        
+        # Reconstruct final response format if COMPLETED
+        citations = []
+        confidence = "Low"
+        metrics = {}
+        
+        if job.status == "COMPLETED" and job.final_answer:
+            final_query = job.original_query
+            faithfulness = 0.0
+            relevance = 0.0
+            if attempts:
+                final_attempt = attempts[-1]
+                final_query = final_attempt.query_text
+                faithfulness = final_attempt.faithfulness_score or 0.0
+                relevance = final_attempt.relevance_score or 0.0
+            
+            try:
+                # Search for similar chunks using query engine
+                search_results = query_engine.vector_store.search(query=final_query, top_k=5)
+                # Re-rank if we want to match exactly what the agent saw
+                import math
+                if search_results.has_results:
+                    pairs = [[final_query, r.content] for r in search_results.results]
+                    rerank_scores = query_engine.reranker.predict(pairs)
+                    for r, score in zip(search_results.results, rerank_scores):
+                        r.score = 1 / (1 + math.exp(-float(score)))
+                    search_results.results.sort(key=lambda x: x.score, reverse=True)
+                    
+                citations = [
+                    {
+                        "source": r.source,
+                        "page": r.page,
+                        "chunk": r.metadata.get('chunk', 0),
+                        "score": r.score,
+                        "excerpt": r.content
+                    }
+                    for r in search_results.results[:5]
+                ]
+                confidence = query_engine._calculate_confidence(search_results)
+                metrics = {
+                    "faithfulness_score": faithfulness,
+                    "answer_relevance_score": relevance,
+                    "total_attempts": len(attempts),
+                    "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+                }
+            except Exception as search_err:
+                logger.error(f"Failed to generate citations/confidence for result response: {search_err}")
+                
+        return ResultResponseModel(
+            job_id=job.job_id,
+            status=job.status,
+            original_query=job.original_query,
+            answer=job.final_answer,
+            citations=citations,
+            confidence=confidence,
+            metrics=metrics,
+            created_at=job.created_at.isoformat(),
+            completed_at=job.completed_at.isoformat() if job.completed_at else None,
+            attempts=attempts_data
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching result: {e}")
+        raise HTTPException(status_code=500, detail="Database query error.")
+    finally:
+        db.close()
+
 
 
 @app.get("/search", tags=["Query"])
