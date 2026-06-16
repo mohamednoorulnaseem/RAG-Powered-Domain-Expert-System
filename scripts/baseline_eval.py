@@ -202,7 +202,7 @@ def run_evaluation():
     local_emb = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     ragas_embeddings = LangchainEmbeddingsWrapper(local_emb)
     
-    metrics = [Faithfulness(), AnswerRelevancy()]
+    metrics = [Faithfulness(), AnswerRelevancy(strictness=1)]
     run_config = RunConfig(max_workers=1)
     
     try:
