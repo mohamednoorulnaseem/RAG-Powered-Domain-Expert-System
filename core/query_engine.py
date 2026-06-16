@@ -93,6 +93,14 @@ class QueryEngine:
         self.history: Dict[str, List[Dict[str, str]]] = {}
         self.max_history = 10  # Store last 10 messages
         
+        # Initialize CrossEncoder for re-ranking
+        logger.info("Initializing CrossEncoder re-ranker model: cross-encoder/ms-marco-MiniLM-L-6-v2...")
+        from sentence_transformers import CrossEncoder
+        import torch
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        logger.info(f"CrossEncoder using device: {device}")
+        self.reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2", device=device)
+        
         logger.info(f"QueryEngine initialized with model: {self.settings.llm_model}")
     
     def _get_history(self, session_id: str) -> List[Dict[str, str]]:
@@ -210,15 +218,34 @@ class QueryEngine:
         """
         start_time = datetime.now()
         
-        # Step 1: Search for relevant chunks
-        logger.info(f"Processing query: {question[:50]}...")
+        # Step 1: Search for relevant candidate chunks (retrieve top 20 or top_k * 4 if top_k is large)
+        requested_k = top_k or 5
+        candidate_k = max(20, requested_k * 4)
+        logger.info(f"Retrieving top {candidate_k} candidates from vector store for query: {question[:50]}...")
         search_results = self.vector_store.search(
             query=question,
-            top_k=top_k,
+            top_k=candidate_k,
             min_score=min_score,
             hybrid_weight=hybrid_weight
         )
         search_time = search_results.search_time_ms
+        
+        # Step 1.5: Cross-Encoder Re-ranking
+        if search_results.has_results:
+            logger.info(f"Reranking {len(search_results.results)} candidates with Cross-Encoder...")
+            import math
+            pairs = [[question, r.content] for r in search_results.results]
+            rerank_scores = self.reranker.predict(pairs)
+            
+            # Update scores with sigmoid of logit
+            for r, score in zip(search_results.results, rerank_scores):
+                r.score = 1 / (1 + math.exp(-float(score)))
+                
+            # Re-sort results by score descending
+            search_results.results.sort(key=lambda x: x.score, reverse=True)
+            
+            # Select final requested_k results
+            search_results.results = search_results.results[:requested_k]
         
         # Step 2: Check if we have relevant results
         if not search_results.has_results:
