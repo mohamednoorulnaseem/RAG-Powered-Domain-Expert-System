@@ -118,23 +118,11 @@ class QueryEngine:
         self._api_key = api_key
         self._base_url = base_url
         self._client = None
+        self._reranker = None  # Lazy-loaded CrossEncoder
 
         # In-memory history: session_id -> list of message dicts
         self.history: Dict[str, List[Dict[str, str]]] = {}
         self.max_history = 10  # Store last 10 messages
-
-        # Initialize CrossEncoder for re-ranking
-        logger.info(
-            "Initializing CrossEncoder re-ranker model: cross-encoder/ms-marco-MiniLM-L-6-v2..."
-        )
-        from sentence_transformers import CrossEncoder
-        import torch
-
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        logger.info(f"CrossEncoder using device: {device}")
-        self.reranker = CrossEncoder(
-            "cross-encoder/ms-marco-MiniLM-L-6-v2", device=device
-        )
 
         logger.info(f"QueryEngine initialized with model: {self.settings.llm_model}")
 
@@ -146,6 +134,22 @@ class QueryEngine:
                 api_key = "mock_key_for_testing"
             self._client = OpenAI(api_key=api_key, base_url=self._base_url)
         return self._client
+
+    @property
+    def reranker(self):
+        """Lazy-load the CrossEncoder re-ranker on first use."""
+        if self._reranker is None:
+            from sentence_transformers import CrossEncoder
+            import torch
+
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            logger.info(
+                f"Lazy-loading CrossEncoder (cross-encoder/ms-marco-MiniLM-L-6-v2) on device: {device}"
+            )
+            self._reranker = CrossEncoder(
+                "cross-encoder/ms-marco-MiniLM-L-6-v2", device=device
+            )
+        return self._reranker
 
     def _get_history(self, session_id: str) -> List[Dict[str, str]]:
         """Get message history for a session"""
