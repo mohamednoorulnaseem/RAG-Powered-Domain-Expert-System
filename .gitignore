@@ -64,3 +64,10 @@ coverage.xml
 htmlcov/
 .pytest_cache/
 *.pyc
+
+# Local scripts and leftover scaffold dirs
+setup.bat
+start.bat
+backend/
+frontend/
+test_env/
