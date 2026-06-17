@@ -9,6 +9,7 @@ import json
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from pathlib import Path
+from typing import List, Dict, Any, Optional
 
 import numpy as np
 from langchain_core.documents import Document
