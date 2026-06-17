@@ -12,13 +12,13 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     """Application settings with environment variable support"""
-    
+
     # ========================================
     # API Configuration
     # ========================================
     openai_api_key: str = ""
     together_api_key: str = ""
-    
+
     # ========================================
     # Model Configuration
     # ========================================
@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     llm_model: str = "gpt-4-turbo-preview"
     temperature: float = 0.0  # Deterministic responses
     max_tokens: int = 2000
-    
+
     # ========================================
     # Document Processing
     # ========================================
@@ -34,25 +34,25 @@ class Settings(BaseSettings):
     chunk_overlap: int = 200
     max_file_size_mb: int = 50
     allowed_extensions: list = [".pdf", ".docx", ".txt", ".md"]
-    
+
     # ========================================
     # Vector Database
     # ========================================
     chroma_persist_directory: str = "./data/chroma_db"
     collection_name: str = "documents"
-    
+
     # ========================================
     # Search Configuration
     # ========================================
     top_k_results: int = 5
     similarity_threshold: float = 0.7
-    
+
     # ========================================
     # Caching
     # ========================================
     redis_url: Optional[str] = None
     cache_ttl_seconds: int = 3600  # 1 hour
-    
+
     # ========================================
     # Server Configuration
     # ========================================
@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     api_port: int = 8001
     streamlit_port: int = 8501
     debug: bool = False
-    
+
     # ========================================
     # Paths
     # ========================================
@@ -68,12 +68,12 @@ class Settings(BaseSettings):
     upload_dir: Path = base_dir / "uploads"
     data_dir: Path = base_dir / "data"
     logs_dir: Path = base_dir / "logs"
-    
+
     class Config:
         env_file = ".env"
         case_sensitive = False
         extra = "ignore"
-    
+
     def ensure_directories(self):
         """Create necessary directories if they don't exist"""
         self.upload_dir.mkdir(parents=True, exist_ok=True)

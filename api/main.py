@@ -17,15 +17,11 @@ from loguru import logger
 
 # Add parent directory to path for imports
 import sys
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config import get_settings
-from core import (
-    DocumentProcessor,
-    VectorStore,
-    QueryEngine,
-    get_query_engine
-)
+from core import DocumentProcessor, VectorStore, QueryEngine, get_query_engine
 
 # Configure logging
 try:
@@ -41,17 +37,24 @@ except Exception as e:
 # Pydantic Models
 # ========================================
 
+
 class QueryRequest(BaseModel):
     """Request model for queries"""
+
     question: str = Field(..., min_length=1, max_length=2000)
     top_k: Optional[int] = Field(5, ge=1, le=20)
     min_score: Optional[float] = Field(0.5, ge=0.0, le=1.0)
-    session_id: Optional[str] = Field(None, description="Unique session ID for conversation memory")
-    hybrid_weight: Optional[float] = Field(0.5, ge=0.0, le=1.0, description="Weight for vector vs keyword search")
+    session_id: Optional[str] = Field(
+        None, description="Unique session ID for conversation memory"
+    )
+    hybrid_weight: Optional[float] = Field(
+        0.5, ge=0.0, le=1.0, description="Weight for vector vs keyword search"
+    )
 
 
 class QueryResponseModel(BaseModel):
     """Response model for queries"""
+
     query: str
     answer: str
     citations: List[dict]
@@ -61,6 +64,7 @@ class QueryResponseModel(BaseModel):
 
 class DocumentInfo(BaseModel):
     """Document information model"""
+
     doc_id: str
     source: str
     file_type: str
@@ -69,6 +73,7 @@ class DocumentInfo(BaseModel):
 
 class StatsResponse(BaseModel):
     """System statistics response"""
+
     total_chunks: int
     total_documents: int
     collection_name: str
@@ -77,6 +82,7 @@ class StatsResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     """Health check response"""
+
     status: str
     timestamp: str
     version: str
@@ -85,12 +91,14 @@ class HealthResponse(BaseModel):
 
 class QueryAsyncResponse(BaseModel):
     """Response model for async queries"""
+
     job_id: str
     status: str
 
 
 class AttemptInfoModel(BaseModel):
     """Attempt information model"""
+
     attempt_number: int
     query_text: str
     faithfulness_score: Optional[float] = None
@@ -100,6 +108,7 @@ class AttemptInfoModel(BaseModel):
 
 class ResultResponseModel(BaseModel):
     """Complete response model for query results"""
+
     job_id: str
     status: str
     original_query: str
@@ -137,7 +146,7 @@ app = FastAPI(
     """,
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
 )
 
 # CORS middleware for frontend access
@@ -160,26 +169,28 @@ query_engine = QueryEngine(vector_store=vector_store)
 # Helper Functions
 # ========================================
 
+
 async def save_upload_file(upload_file: UploadFile) -> Path:
     """Save uploaded file to disk"""
     upload_dir = settings.upload_dir
     upload_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Generate unique filename
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"{timestamp}_{upload_file.filename}"
     file_path = upload_dir / filename
-    
+
     # Save file
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(upload_file.file, buffer)
-    
+
     return file_path
 
 
 # ========================================
 # API Endpoints
 # ========================================
+
 
 @app.get("/", tags=["General"])
 async def root():
@@ -188,7 +199,7 @@ async def root():
         "name": "ragcore API",
         "version": "1.0.0",
         "docs": "/docs",
-        "status": "running"
+        "status": "running",
     }
 
 
@@ -202,21 +213,20 @@ async def health_check():
         "components": {
             "api": "online",
             "vector_store": "online",
-            "documents_indexed": vector_store.collection.count()
-        }
+            "documents_indexed": vector_store.collection.count(),
+        },
     }
 
 
 @app.post("/documents/upload", tags=["Documents"])
 async def upload_document(
-    file: UploadFile = File(...),
-    background_tasks: BackgroundTasks = None
+    file: UploadFile = File(...), background_tasks: BackgroundTasks = None
 ):
     """
     Upload a document for processing
-    
+
     Supported formats: PDF, DOCX, TXT, MD
-    
+
     The document will be:
     1. Saved to disk
     2. Parsed and chunked
@@ -227,22 +237,22 @@ async def upload_document(
     if file_ext not in settings.allowed_extensions:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported file type: {file_ext}. Supported: {settings.allowed_extensions}"
+            detail=f"Unsupported file type: {file_ext}. Supported: {settings.allowed_extensions}",
         )
-    
+
     try:
         # Save file
         file_path = await save_upload_file(file)
         logger.info(f"File saved: {file_path}")
-        
+
         # Process document
         processed_doc = document_processor.process_document(str(file_path))
-        
+
         # Add to vector store
         logger.debug(f"Adding {processed_doc.num_chunks} chunks to vector store...")
         result = vector_store.add_documents(processed_doc.chunks)
         logger.debug(f"Add result: {result}")
-        
+
         return {
             "success": True,
             "document": {
@@ -250,11 +260,11 @@ async def upload_document(
                 "filename": processed_doc.filename,
                 "file_type": processed_doc.file_type,
                 "pages": processed_doc.num_pages,
-                "chunks": processed_doc.num_chunks
+                "chunks": processed_doc.num_chunks,
             },
-            "indexing": result
+            "indexing": result,
         }
-        
+
     except Exception as e:
         with open("debug_error.log", "a") as f:
             f.write(f"Upload Error: {e}\n")
@@ -263,7 +273,9 @@ async def upload_document(
 
     # Explicitly debug successful path
     with open("debug_upload.log", "a") as f:
-         f.write(f"Success! Added {len(processed_doc.chunks)} chunks. Persistence path: {vector_store.persist_path}\n")
+        f.write(
+            f"Success! Added {len(processed_doc.chunks)} chunks. Persistence path: {vector_store.persist_path}\n"
+        )
 
 
 @app.post("/documents/upload-multiple", tags=["Documents"])
@@ -271,39 +283,40 @@ async def upload_multiple_documents(files: List[UploadFile] = File(...)):
     """Upload multiple documents at once"""
     results = []
     errors = []
-    
+
     for file in files:
         try:
             file_ext = Path(file.filename).suffix.lower()
             if file_ext not in settings.allowed_extensions:
-                errors.append({
-                    "filename": file.filename,
-                    "error": f"Unsupported file type: {file_ext}"
-                })
+                errors.append(
+                    {
+                        "filename": file.filename,
+                        "error": f"Unsupported file type: {file_ext}",
+                    }
+                )
                 continue
-            
+
             file_path = await save_upload_file(file)
             processed_doc = document_processor.process_document(str(file_path))
             vector_store.add_documents(processed_doc.chunks)
-            
-            results.append({
-                "doc_id": processed_doc.doc_id,
-                "filename": processed_doc.filename,
-                "chunks": processed_doc.num_chunks
-            })
-            
+
+            results.append(
+                {
+                    "doc_id": processed_doc.doc_id,
+                    "filename": processed_doc.filename,
+                    "chunks": processed_doc.num_chunks,
+                }
+            )
+
         except Exception as e:
-            errors.append({
-                "filename": file.filename,
-                "error": str(e)
-            })
-    
+            errors.append({"filename": file.filename, "error": str(e)})
+
     return {
         "success": len(results) > 0,
         "processed": len(results),
         "failed": len(errors),
         "documents": results,
-        "errors": errors
+        "errors": errors,
     }
 
 
@@ -311,32 +324,31 @@ async def upload_multiple_documents(files: List[UploadFile] = File(...)):
 async def list_documents():
     """List all indexed documents"""
     documents = vector_store.list_documents()
-    return {
-        "total": len(documents),
-        "documents": documents
-    }
+    return {"total": len(documents), "documents": documents}
 
 
 @app.get("/documents/{doc_id}", tags=["Documents"])
 async def get_document(doc_id: str):
     """Get details for a specific document"""
     chunks = vector_store.get_document_chunks(doc_id)
-    
+
     if not chunks:
         raise HTTPException(status_code=404, detail=f"Document not found: {doc_id}")
-    
+
     return {
         "doc_id": doc_id,
-        "source": chunks[0].metadata.get('source', 'Unknown'),
+        "source": chunks[0].metadata.get("source", "Unknown"),
         "num_chunks": len(chunks),
         "chunks": [
             {
                 "chunk_id": c.chunk_id,
-                "page": c.metadata.get('page', 0),
-                "content_preview": c.content[:200] + "..." if len(c.content) > 200 else c.content
+                "page": c.metadata.get("page", 0),
+                "content_preview": (
+                    c.content[:200] + "..." if len(c.content) > 200 else c.content
+                ),
             }
             for c in chunks[:10]  # Limit to first 10 chunks
-        ]
+        ],
     }
 
 
@@ -344,15 +356,11 @@ async def get_document(doc_id: str):
 async def delete_document(doc_id: str):
     """Delete a document from the system"""
     result = vector_store.delete_document(doc_id)
-    
-    if result['deleted'] == 0:
+
+    if result["deleted"] == 0:
         raise HTTPException(status_code=404, detail=f"Document not found: {doc_id}")
-    
-    return {
-        "success": True,
-        "deleted_chunks": result['deleted'],
-        "doc_id": doc_id
-    }
+
+    return {"success": True, "deleted_chunks": result["deleted"], "doc_id": doc_id}
 
 
 @app.post("/query", response_model=QueryAsyncResponse, tags=["Query"])
@@ -363,19 +371,15 @@ async def query_documents(request: QueryRequest):
     import uuid
     from core.db import SessionLocal, Job, init_db
     from core.celery_worker import run_agent_task
-    
+
     init_db()  # Ensure DB tables are initialized
-    
+
     job_id = str(uuid.uuid4())
-    
+
     # Create DB entry
     db = SessionLocal()
     try:
-        job = Job(
-            job_id=job_id,
-            status="PENDING",
-            original_query=request.question
-        )
+        job = Job(job_id=job_id, status="PENDING", original_query=request.question)
         db.add(job)
         db.commit()
     except Exception as e:
@@ -384,7 +388,7 @@ async def query_documents(request: QueryRequest):
         raise HTTPException(status_code=500, detail="Database error occurred.")
     finally:
         db.close()
-        
+
     # Trigger Celery task
     try:
         run_agent_task.delay(job_id, request.question)
@@ -402,7 +406,7 @@ async def query_documents(request: QueryRequest):
         finally:
             db.close()
         raise HTTPException(status_code=500, detail="Failed to queue task.")
-        
+
     return QueryAsyncResponse(job_id=job_id, status="PENDING")
 
 
@@ -412,30 +416,36 @@ async def get_job_result(job_id: str):
     Retrieve execution status and result for a given job_id
     """
     from core.db import SessionLocal, Job, Attempt
+
     db = SessionLocal()
     try:
         job = db.query(Job).filter(Job.job_id == job_id).first()
         if not job:
             raise HTTPException(status_code=404, detail="Job not found.")
-            
-        attempts = db.query(Attempt).filter(Attempt.job_id == job_id).order_by(Attempt.attempt_number).all()
-        
+
+        attempts = (
+            db.query(Attempt)
+            .filter(Attempt.job_id == job_id)
+            .order_by(Attempt.attempt_number)
+            .all()
+        )
+
         attempts_data = [
             AttemptInfoModel(
                 attempt_number=a.attempt_number,
                 query_text=a.query_text,
                 faithfulness_score=a.faithfulness_score,
                 relevance_score=a.relevance_score,
-                generated_answer=a.generated_answer
+                generated_answer=a.generated_answer,
             )
             for a in attempts
         ]
-        
+
         # Reconstruct final response format if COMPLETED
         citations = []
         confidence = "Low"
         metrics = {}
-        
+
         if job.status == "COMPLETED" and job.final_answer:
             final_query = job.original_query
             faithfulness = 0.0
@@ -445,26 +455,29 @@ async def get_job_result(job_id: str):
                 final_query = final_attempt.query_text
                 faithfulness = final_attempt.faithfulness_score or 0.0
                 relevance = final_attempt.relevance_score or 0.0
-            
+
             try:
                 # Search for similar chunks using query engine
-                search_results = query_engine.vector_store.search(query=final_query, top_k=5)
+                search_results = query_engine.vector_store.search(
+                    query=final_query, top_k=5
+                )
                 # Re-rank if we want to match exactly what the agent saw
                 import math
+
                 if search_results.has_results:
                     pairs = [[final_query, r.content] for r in search_results.results]
                     rerank_scores = query_engine.reranker.predict(pairs)
                     for r, score in zip(search_results.results, rerank_scores):
                         r.score = 1 / (1 + math.exp(-float(score)))
                     search_results.results.sort(key=lambda x: x.score, reverse=True)
-                    
+
                 citations = [
                     {
                         "source": r.source,
                         "page": r.page,
-                        "chunk": r.metadata.get('chunk', 0),
+                        "chunk": r.metadata.get("chunk", 0),
                         "score": r.score,
-                        "excerpt": r.content
+                        "excerpt": r.content,
                     }
                     for r in search_results.results[:5]
                 ]
@@ -473,11 +486,17 @@ async def get_job_result(job_id: str):
                     "faithfulness_score": faithfulness,
                     "answer_relevance_score": relevance,
                     "total_attempts": len(attempts),
-                    "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+                    "usage": {
+                        "prompt_tokens": 0,
+                        "completion_tokens": 0,
+                        "total_tokens": 0,
+                    },
                 }
             except Exception as search_err:
-                logger.error(f"Failed to generate citations/confidence for result response: {search_err}")
-                
+                logger.error(
+                    f"Failed to generate citations/confidence for result response: {search_err}"
+                )
+
         return ResultResponseModel(
             job_id=job.job_id,
             status=job.status,
@@ -488,7 +507,7 @@ async def get_job_result(job_id: str):
             metrics=metrics,
             created_at=job.created_at.isoformat(),
             completed_at=job.completed_at.isoformat() if job.completed_at else None,
-            attempts=attempts_data
+            attempts=attempts_data,
         )
     except HTTPException:
         raise
@@ -499,22 +518,18 @@ async def get_job_result(job_id: str):
         db.close()
 
 
-
 @app.get("/search", tags=["Query"])
 async def search_chunks(
     q: str = Query(..., min_length=1, description="Search query"),
-    top_k: int = Query(5, ge=1, le=20, description="Number of results")
+    top_k: int = Query(5, ge=1, le=20, description="Number of results"),
 ):
     """
     Search for relevant chunks (without generating an answer)
-    
+
     Useful for debugging or exploring what's in the vector store.
     """
     results = query_engine.get_similar_chunks(query=q, top_k=top_k)
-    return {
-        "query": q,
-        "results": results
-    }
+    return {"query": q, "results": results}
 
 
 @app.get("/documents/{doc_id}/summary", tags=["Documents"])
@@ -522,12 +537,12 @@ async def summarize_document(doc_id: str):
     """Generate a summary of a specific document"""
     try:
         result = query_engine.summarize_document(doc_id)
-        
-        if 'error' in result:
-            raise HTTPException(status_code=404, detail=result['error'])
-        
+
+        if "error" in result:
+            raise HTTPException(status_code=404, detail=result["error"])
+
         return result
-        
+
     except Exception as e:
         logger.error(f"Summary error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -547,14 +562,14 @@ async def reindex_documents(background_tasks: BackgroundTasks):
         count = 0
         errors = []
         upload_dir = settings.upload_dir
-        
+
         # Get all files
         files = []
         for ext in settings.allowed_extensions:
             files.extend(list(upload_dir.glob(f"*{ext}")))
-            
+
         logger.info(f"Found {len(files)} files to re-index")
-        
+
         for file_path in files:
             try:
                 processed_doc = document_processor.process_document(str(file_path))
@@ -563,12 +578,12 @@ async def reindex_documents(background_tasks: BackgroundTasks):
             except Exception as e:
                 logger.error(f"Failed to re-index {file_path.name}: {e}")
                 errors.append(f"{file_path.name}: {e}")
-                
+
         return {
             "success": True,
             "reindexed": count,
             "total_found": len(files),
-            "errors": errors
+            "errors": errors,
         }
     except Exception as e:
         logger.error(f"Re-indexing failed: {e}")
@@ -579,12 +594,13 @@ async def reindex_documents(background_tasks: BackgroundTasks):
 # Error Handlers
 # ========================================
 
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
     logger.error(f"Unhandled exception: {exc}")
     return JSONResponse(
         status_code=500,
-        content={"detail": "An unexpected error occurred. Please try again."}
+        content={"detail": "An unexpected error occurred. Please try again."},
     )
 
 
@@ -594,9 +610,5 @@ async def global_exception_handler(request, exc):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "main:app",
-        host=settings.api_host,
-        port=settings.api_port,
-        reload=True
-    )
+
+    uvicorn.run("main:app", host=settings.api_host, port=settings.api_port, reload=True)

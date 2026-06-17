@@ -17,11 +17,7 @@ from core.db import SessionLocal, Job
 settings = get_settings()
 redis_url = settings.redis_url or os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
-celery_app = Celery(
-    "rag_tasks",
-    broker=redis_url,
-    backend=redis_url
-)
+celery_app = Celery("rag_tasks", broker=redis_url, backend=redis_url)
 
 celery_app.conf.update(
     task_serializer="json",
@@ -31,10 +27,11 @@ celery_app.conf.update(
     enable_utc=True,
 )
 
+
 @celery_app.task(name="core.celery_worker.run_agent_task")
 def run_agent_task(job_id: str, query: str):
     logger.info(f"Starting async Celery task for job: {job_id} with query: {query}")
-    
+
     # Update DB job status to RUNNING
     db = SessionLocal()
     try:
@@ -46,17 +43,17 @@ def run_agent_task(job_id: str, query: str):
         logger.error(f"Failed to update Job status to RUNNING in celery task: {e}")
     finally:
         db.close()
-        
+
     try:
         # Initialize components on the worker
         embedding_service = HuggingFaceEmbeddingService()
         vector_store = VectorStore(embedding_service=embedding_service)
         query_engine = QueryEngine(vector_store=vector_store)
         agent = SelfCorrectingRAGAgent(query_engine=query_engine)
-        
+
         # Run agent (this automatically handles DB logging inside SelfCorrectingRAGAgent.run)
         result = agent.run(query=query, job_id=job_id)
-        
+
         logger.success(f"Celery task succeeded for job: {job_id}")
         return {
             "success": True,
@@ -64,7 +61,7 @@ def run_agent_task(job_id: str, query: str):
             "final_answer": result["generation"],
             "attempts": result["attempts"],
             "faithfulness": result["faithfulness_score"],
-            "relevancy": result["answer_relevance_score"]
+            "relevancy": result["answer_relevance_score"],
         }
     except Exception as e:
         logger.error(f"Celery task failed for job: {job_id}: {e}")
@@ -79,8 +76,4 @@ def run_agent_task(job_id: str, query: str):
             logger.error(f"Failed to mark Job as FAILED in DB: {db_err}")
         finally:
             db.close()
-        return {
-            "success": False,
-            "job_id": job_id,
-            "error": str(e)
-        }
+        return {"success": False, "job_id": job_id, "error": str(e)}

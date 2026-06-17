@@ -24,14 +24,15 @@ st.set_page_config(
     page_title="ragcore",
     page_icon="🧠",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
 # ========================================
 # Custom CSS for Premium Look
 # ========================================
 
-st.markdown("""
+st.markdown(
+    """
 <style>
     /* Import Google Fonts */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -228,7 +229,9 @@ st.markdown("""
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 # ========================================
 # Configuration
@@ -248,14 +251,21 @@ if "documents" not in st.session_state:
 
 if "session_id" not in st.session_state:
     import uuid
+
     st.session_state.session_id = str(uuid.uuid4())
 
 if "total_usage" not in st.session_state:
-    st.session_state.total_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "cost": 0.0}
+    st.session_state.total_usage = {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0,
+        "cost": 0.0,
+    }
 
 # ========================================
 # API Helper Functions
 # ========================================
+
 
 def check_api_health():
     """Check if API is running"""
@@ -264,6 +274,7 @@ def check_api_health():
         return response.status_code == 200
     except:
         return False
+
 
 def upload_document(file):
     """Upload document to API"""
@@ -274,7 +285,10 @@ def upload_document(file):
     except Exception as e:
         return {"error": str(e)}
 
-def query_documents(question, top_k=5, min_score=0.5, session_id=None, hybrid_weight=0.5):
+
+def query_documents(
+    question, top_k=5, min_score=0.5, session_id=None, hybrid_weight=0.5
+):
     """Query documents via API with async polling"""
     try:
         # Step 1: Submit the query
@@ -285,42 +299,44 @@ def query_documents(question, top_k=5, min_score=0.5, session_id=None, hybrid_we
                 "top_k": top_k,
                 "min_score": min_score,
                 "session_id": session_id,
-                "hybrid_weight": hybrid_weight
-            }
+                "hybrid_weight": hybrid_weight,
+            },
         )
-        
+
         if response.status_code != 200:
             return {"error": f"Failed to submit query: {response.text}"}
-            
+
         init_data = response.json()
         job_id = init_data.get("job_id")
         if not job_id:
             return {"error": "No job_id returned from query endpoint"}
-            
+
         # Step 2: Poll for results
         import time
+
         max_polls = 120  # 3 minutes max
         poll_interval = 1.5
-        
+
         for _ in range(max_polls):
             res_response = requests.get(f"{API_URL}/result/{job_id}")
             if res_response.status_code != 200:
                 return {"error": f"Failed to get job result: {res_response.text}"}
-                
+
             result_data = res_response.json()
             status = result_data.get("status")
-            
+
             if status == "COMPLETED":
                 return result_data
             elif status == "FAILED":
                 return {"error": "Query execution failed on worker."}
-                
+
             time.sleep(poll_interval)
-            
+
         return {"error": "Query execution timed out."}
-        
+
     except Exception as e:
         return {"error": str(e)}
+
 
 def get_documents():
     """Get list of documents"""
@@ -330,6 +346,7 @@ def get_documents():
     except:
         return []
 
+
 def get_stats():
     """Get system stats"""
     try:
@@ -337,6 +354,7 @@ def get_stats():
         return response.json()
     except:
         return {"total_chunks": 0, "total_documents": 0}
+
 
 def delete_document(doc_id):
     """Delete a document"""
@@ -346,6 +364,7 @@ def delete_document(doc_id):
     except Exception as e:
         return {"error": str(e)}
 
+
 # ========================================
 # Sidebar
 # ========================================
@@ -353,7 +372,7 @@ def delete_document(doc_id):
 with st.sidebar:
     st.markdown("# 🧠 ragcore")
     st.markdown("---")
-    
+
     # API Status
     api_online = check_api_health()
     if api_online:
@@ -361,18 +380,18 @@ with st.sidebar:
     else:
         st.error("❌ API Offline - Start the API server")
         st.code("python api/main.py", language="bash")
-    
+
     st.markdown("---")
-    
+
     # Document Upload
     st.markdown("### 📄 Upload Documents")
     uploaded_files = st.file_uploader(
         "Drop files here",
         type=["pdf", "docx", "txt", "md"],
         accept_multiple_files=True,
-        help="Supported: PDF, DOCX, TXT, MD"
+        help="Supported: PDF, DOCX, TXT, MD",
     )
-    
+
     if uploaded_files:
         if st.button("📤 Upload All", use_container_width=True):
             progress = st.progress(0)
@@ -382,56 +401,64 @@ with st.sidebar:
                     if "error" in result:
                         st.error(f"❌ {file.name}: {result['error']}")
                     elif result.get("success") and "document" in result:
-                        chunks = result['document'].get('chunks', 0)
+                        chunks = result["document"].get("chunks", 0)
                         st.success(f"✅ {file.name}: {chunks} chunks")
                     else:
                         st.warning(f"⚠️ {file.name}: Uploaded (check logs)")
                 progress.progress((i + 1) / len(uploaded_files))
             st.rerun()
-    
+
     st.markdown("---")
-    
+
     # Stats
     stats = get_stats()
     st.markdown("### 📊 System Stats")
-    
+
     col1, col2 = st.columns(2)
     col1.metric("Documents", stats.get("total_documents", 0))
     col2.metric("Chunks", stats.get("total_chunks", 0))
-    
+
     st.markdown("---")
-    
+
     # Re-index Option (Fail-safe)
     if stats.get("total_documents", 0) == 0:
-        if st.button("🔄 Re-index Files", help="Click if you uploaded files but they don't show up"):
-             with st.spinner("Re-indexing existing files..."):
-                 try:
-                     r = requests.post(f"{API_URL}/admin/reindex")
-                     data = r.json()
-                     if data.get("success"):
-                         st.success(f"Restored {data.get('reindexed')} documents!")
-                         time.sleep(1)
-                         st.rerun()
-                     else:
-                         st.error(f"Re-indexing failed: {data.get('errors')}")
-                 except Exception as e:
-                     st.error(f"Failed: {e}")
-    
+        if st.button(
+            "🔄 Re-index Files",
+            help="Click if you uploaded files but they don't show up",
+        ):
+            with st.spinner("Re-indexing existing files..."):
+                try:
+                    r = requests.post(f"{API_URL}/admin/reindex")
+                    data = r.json()
+                    if data.get("success"):
+                        st.success(f"Restored {data.get('reindexed')} documents!")
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error(f"Re-indexing failed: {data.get('errors')}")
+                except Exception as e:
+                    st.error(f"Failed: {e}")
+
     st.markdown("---")
 
     # Settings
     st.markdown("### ⚙️ Query Settings")
     top_k = st.slider("Results to retrieve", 1, 10, 5)
     min_score = st.slider("Minimum similarity", 0.0, 1.0, 0.4)
-    hybrid_weight = st.slider("Search Mode (Vector vs Keyword)", 0.0, 1.0, 0.7, 
-                             help="0.0 = Keyword only, 1.0 = Semantic only. 0.7 is recommended.")
-    
+    hybrid_weight = st.slider(
+        "Search Mode (Vector vs Keyword)",
+        0.0,
+        1.0,
+        0.7,
+        help="0.0 = Keyword only, 1.0 = Semantic only. 0.7 is recommended.",
+    )
+
     st.markdown("---")
-    
+
     # Document Management
     st.markdown("### 📁 Documents")
     documents = get_documents()
-    
+
     if documents:
         for doc in documents:
             with st.expander(f"📄 {doc['source'][:20]}..."):
@@ -439,7 +466,7 @@ with st.sidebar:
                 st.write(f"**Type:** {doc['file_type']}")
                 st.write(f"**Chunks:** {doc['chunks']}")
                 if st.button("🗑️ Delete", key=f"del_{doc['doc_id']}"):
-                    delete_document(doc['doc_id'])
+                    delete_document(doc["doc_id"])
                     st.rerun()
     else:
         st.info("No documents uploaded yet")
@@ -453,14 +480,17 @@ st.markdown("""
 ### Your AI-Powered Document Assistant
 """)
 
-st.markdown("""
+st.markdown(
+    """
 <div class="glass-card">
     <p style="color: #a0a0a0; font-size: 1.1em;">
         Upload your documents and ask questions in natural language. 
         Get accurate answers with source citations - no more searching through pages!
     </p>
 </div>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -480,13 +510,17 @@ st.markdown("### 💬 Ask Your Documents")
 # Display chat history
 for msg in st.session_state.messages:
     if msg["role"] == "user":
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div class="user-message">
             <strong>You:</strong> {msg['content']}
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
     else:
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div class="assistant-message">
             {msg['content']}
             <br><br>
@@ -494,8 +528,10 @@ for msg in st.session_state.messages:
                 <span style="font-size: 0.8em; color: #888;">Confidence: {msg.get('confidence', 'Unknown')}</span>
             </div>
         </div>
-        """, unsafe_allow_html=True)
-        
+        """,
+            unsafe_allow_html=True,
+        )
+
         # Action buttons for assistant message
         col1, col2 = st.columns([4, 1])
         with col2:
@@ -505,22 +541,29 @@ for msg in st.session_state.messages:
                 data=report_text,
                 file_name=f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
                 mime="text/markdown",
-                key=f"dl_{st.session_state.messages.index(msg)}"
+                key=f"dl_{st.session_state.messages.index(msg)}",
             )
-        
+
         # Show citations if available
-        if 'citations' in msg and msg['citations']:
+        if "citations" in msg and msg["citations"]:
             with st.expander("📚 View Sources"):
-                for i, cite in enumerate(msg['citations'], 1):
-                    score_class = "high" if cite['score'] > 0.8 else "medium" if cite['score'] > 0.6 else "low"
-                    st.markdown(f"""
+                for i, cite in enumerate(msg["citations"], 1):
+                    score_class = (
+                        "high"
+                        if cite["score"] > 0.8
+                        else "medium" if cite["score"] > 0.6 else "low"
+                    )
+                    st.markdown(
+                        f"""
                     <div class="citation-card">
                         <span class="score-badge {score_class}">{cite['score']:.0%} match</span>
                         <strong> {cite['source']}</strong> (Page {cite['page']})
                         <br><br>
                         <em>"{cite['excerpt']}"</em>
                     </div>
-                    """, unsafe_allow_html=True)
+                    """,
+                        unsafe_allow_html=True,
+                    )
 
 # Input
 with st.form("query_form", clear_on_submit=True):
@@ -529,7 +572,7 @@ with st.form("query_form", clear_on_submit=True):
         user_input = st.text_input(
             "Ask a question...",
             placeholder="e.g., What are the termination terms in the contract?",
-            label_visibility="collapsed"
+            label_visibility="collapsed",
         )
     with col2:
         submit = st.form_submit_button("Ask 🚀", use_container_width=True)
@@ -542,38 +585,53 @@ if submit and user_input:
     else:
         # Add user message
         st.session_state.messages.append({"role": "user", "content": user_input})
-        
+
         # Query API
         with st.spinner("🔍 Reviewing documents..."):
-            result = query_documents(user_input, top_k, min_score, st.session_state.session_id, hybrid_weight)
-        
+            result = query_documents(
+                user_input, top_k, min_score, st.session_state.session_id, hybrid_weight
+            )
+
         if "error" in result:
             st.error(f"Error: {result['error']}")
         else:
             # Add assistant response
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": result["answer"],
-                "citations": result.get("citations", []),
-                "confidence": result.get("confidence", "Unknown"),
-                "metrics": result.get("metrics", {})
-            })
-            
+            st.session_state.messages.append(
+                {
+                    "role": "assistant",
+                    "content": result["answer"],
+                    "citations": result.get("citations", []),
+                    "confidence": result.get("confidence", "Unknown"),
+                    "metrics": result.get("metrics", {}),
+                }
+            )
+
             # Update usage stats
             metrics = result.get("metrics", {})
             usage = metrics.get("usage", {})
-            st.session_state.total_usage["prompt_tokens"] += usage.get("prompt_tokens", 0)
-            st.session_state.total_usage["completion_tokens"] += usage.get("completion_tokens", 0)
+            st.session_state.total_usage["prompt_tokens"] += usage.get(
+                "prompt_tokens", 0
+            )
+            st.session_state.total_usage["completion_tokens"] += usage.get(
+                "completion_tokens", 0
+            )
             st.session_state.total_usage["total_tokens"] += usage.get("total_tokens", 0)
-            st.session_state.total_usage["cost"] += metrics.get("estimated_cost_usd", 0.0)
-            
+            st.session_state.total_usage["cost"] += metrics.get(
+                "estimated_cost_usd", 0.0
+            )
+
             st.rerun()
 
 # Clear chat button
 if st.session_state.messages:
     if st.button("🗑️ Clear Chat"):
         st.session_state.messages = []
-        st.session_state.total_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "cost": 0.0}
+        st.session_state.total_usage = {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "cost": 0.0,
+        }
         st.rerun()
 
 # ========================================
@@ -587,15 +645,18 @@ with st.expander("📊 Session Usage Details", expanded=False):
     col2.metric("Output Tokens", f"{u['completion_tokens']:,}")
     col3.metric("Total Tokens", f"{u['total_tokens']:,}")
     col4.metric("Est. Cost", f"${u['cost']:.4f}")
-    
-    st.info("💡 Prices are based on standard GPT-4 Turbo rates ($10/M input, $30/M output).")
+
+    st.info(
+        "💡 Prices are based on standard GPT-4 Turbo rates ($10/M input, $30/M output)."
+    )
 
 # ========================================
 # Footer
 # ========================================
 
 st.markdown("---")
-st.markdown(f"""
+st.markdown(
+    f"""
 <div style="text-align: center; color: #666; padding: 20px;">
     <p>🧠 <strong>ragcore v1.0</strong> | Developed by <strong>Mohamed Noorul Naseem</strong></p>
     <p>📚 Upload documents • 🔍 Semantic search • 💬 AI-powered answers</p>
@@ -605,4 +666,6 @@ st.markdown(f"""
         <a href="mailto:noorulnaseem11@gmail.com" style="color: #f093fb; text-decoration: none;">Contact</a>
     </div>
 </div>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
