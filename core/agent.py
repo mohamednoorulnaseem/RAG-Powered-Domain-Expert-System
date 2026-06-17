@@ -83,12 +83,21 @@ class SelfCorrectingRAGAgent:
         self.settings = get_settings()
         self.groq_key = os.getenv("GROQ_API_KEY", "")
         self.evaluator = RagasEvaluator(self.groq_key)
-        self.client = OpenAI(
-            api_key=self.groq_key, base_url="https://api.groq.com/openai/v1"
-        )
+        self._client = None
 
         # Compile graph
         self.graph = self._build_graph()
+
+    @property
+    def client(self):
+        if self._client is None:
+            groq_key = self.groq_key
+            if not groq_key or "your-api-key" in groq_key:
+                groq_key = "mock_key_for_testing"
+            self._client = OpenAI(
+                api_key=groq_key, base_url="https://api.groq.com/openai/v1"
+            )
+        return self._client
 
     def _build_graph(self) -> StateGraph:
         workflow = StateGraph(AgentState)

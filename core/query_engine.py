@@ -103,7 +103,9 @@ class QueryEngine:
         base_url = os.getenv("OPENAI_BASE_URL", None)
 
         groq_key = os.getenv("GROQ_API_KEY", "")
-        if groq_key and (not api_key or "sk-your-api-key" in api_key):
+        if groq_key and (
+            not api_key or "your-api-key" in api_key or "sk-your-api-key" in api_key
+        ):
             logger.info(
                 "No valid OpenAI API key detected. Falling back to Groq provider for LLM completions."
             )
@@ -113,7 +115,9 @@ class QueryEngine:
             self.settings.llm_model = "llama-3.1-8b-instant"
             os.environ["LLM_MODEL"] = "llama-3.1-8b-instant"
 
-        self.client = OpenAI(api_key=api_key, base_url=base_url)
+        self._api_key = api_key
+        self._base_url = base_url
+        self._client = None
 
         # In-memory history: session_id -> list of message dicts
         self.history: Dict[str, List[Dict[str, str]]] = {}
@@ -133,6 +137,15 @@ class QueryEngine:
         )
 
         logger.info(f"QueryEngine initialized with model: {self.settings.llm_model}")
+
+    @property
+    def client(self):
+        if self._client is None:
+            api_key = self._api_key
+            if not api_key or "your-api-key" in api_key:
+                api_key = "mock_key_for_testing"
+            self._client = OpenAI(api_key=api_key, base_url=self._base_url)
+        return self._client
 
     def _get_history(self, session_id: str) -> List[Dict[str, str]]:
         """Get message history for a session"""

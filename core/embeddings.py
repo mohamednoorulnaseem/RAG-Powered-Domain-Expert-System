@@ -59,10 +59,20 @@ class OpenAIEmbeddingService(BaseEmbeddingService):
     def __init__(self, model: Optional[str] = None, api_key: Optional[str] = None):
         self.settings = get_settings()
         self.model = model or self.settings.embedding_model
-        self.client = OpenAI(api_key=api_key or self.settings.openai_api_key)
+        self._api_key = api_key or self.settings.openai_api_key
+        self._client = None
         self._dimension = self.DIMENSION_MAP.get(self.model, 1536)
 
         logger.info(f"OpenAI Embedding Service initialized with model: {self.model}")
+
+    @property
+    def client(self):
+        if self._client is None:
+            api_key = self._api_key
+            if not api_key or "your-api-key" in api_key:
+                api_key = "mock_key_for_testing"
+            self._client = OpenAI(api_key=api_key)
+        return self._client
 
     @property
     def dimension(self) -> int:
