@@ -2,7 +2,7 @@
 
 ## Overview
 
-The RAG Expert System API is a RESTful service built with FastAPI that provides document management and intelligent question-answering capabilities.
+The ragcore API is a RESTful service built with FastAPI that provides document management and intelligent question-answering capabilities.
 
 **Base URL:** `http://localhost:8001`
 

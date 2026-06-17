@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # ========================================
 
 st.set_page_config(
-    page_title="RAG Expert System",
+    page_title="ragcore",
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -351,7 +351,7 @@ def delete_document(doc_id):
 # ========================================
 
 with st.sidebar:
-    st.markdown("# 🧠 RAG Expert")
+    st.markdown("# 🧠 ragcore")
     st.markdown("---")
     
     # API Status
@@ -449,7 +449,7 @@ with st.sidebar:
 # ========================================
 
 st.markdown("""
-# 🧠 RAG Expert System
+# 🧠 ragcore
 ### Your AI-Powered Document Assistant
 """)
 
@@ -597,7 +597,7 @@ with st.expander("📊 Session Usage Details", expanded=False):
 st.markdown("---")
 st.markdown(f"""
 <div style="text-align: center; color: #666; padding: 20px;">
-    <p>🧠 <strong>RAG Expert System v1.0</strong> | Developed by <strong>Mohamed Noorul Naseem</strong></p>
+    <p>🧠 <strong>ragcore v1.0</strong> | Developed by <strong>Mohamed Noorul Naseem</strong></p>
     <p>📚 Upload documents • 🔍 Semantic search • 💬 AI-powered answers</p>
     <div style="margin-top: 10px; display: flex; justify-content: center; gap: 20px;">
         <a href="https://github.com/mohamednoorulnaseem" target="_blank" style="color: #667eea; text-decoration: none;">GitHub</a>

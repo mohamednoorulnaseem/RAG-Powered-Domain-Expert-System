@@ -1,5 +1,5 @@
 """
-RAG Expert System - FastAPI Backend
+ragcore - FastAPI Backend
 REST API for document management and querying
 """
 
@@ -117,9 +117,9 @@ class ResultResponseModel(BaseModel):
 # ========================================
 
 app = FastAPI(
-    title="RAG Expert System API",
+    title="ragcore API",
     description="""
-    🚀 **RAG (Retrieval-Augmented Generation) Expert System**
+    🚀 **ragcore: Self-Correcting RAG Agent Pipeline**
     
     Upload documents and ask questions to get accurate, source-cited answers.
     
@@ -185,7 +185,7 @@ async def save_upload_file(upload_file: UploadFile) -> Path:
 async def root():
     """Root endpoint with API information"""
     return {
-        "name": "RAG Expert System API",
+        "name": "ragcore API",
         "version": "1.0.0",
         "docs": "/docs",
         "status": "running"

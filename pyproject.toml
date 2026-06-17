@@ -3,14 +3,14 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "rag-expert-system"
+name = "ragcore"
 version = "1.0.0"
-description = "Enterprise-grade RAG system for intelligent document analysis"
+description = "Self-correcting RAG agent pipeline with Cross-Encoder reranking, Celery async tasks, and Ragas evaluation"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "Mohamed Noorul Naseem", email = "noorulnaseem11@gmail.com"}
+    {name = "Mohamed Noor Ul Naseem", email = "noorulnaseem11@gmail.com"}
 ]
 keywords = ["rag", "ai", "llm", "document-analysis", "openai", "fastapi"]
 classifiers = [
@@ -54,10 +54,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/mohamednoorulnaseem/RAG-Powered-Domain-Expert-System"
-Documentation = "https://github.com/mohamednoorulnaseem/RAG-Powered-Domain-Expert-System/tree/main/docs"
-Repository = "https://github.com/mohamednoorulnaseem/RAG-Powered-Domain-Expert-System"
-"Bug Tracker" = "https://github.com/mohamednoorulnaseem/RAG-Powered-Domain-Expert-System/issues"
+Homepage = "https://github.com/mohamednoorulnaseem/ragcore"
+Documentation = "https://github.com/mohamednoorulnaseem/ragcore/tree/main/docs"
+Repository = "https://github.com/mohamednoorulnaseem/ragcore"
+"Bug Tracker" = "https://github.com/mohamednoorulnaseem/ragcore/issues"
 
 [tool.black]
 line-length = 88

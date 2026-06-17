@@ -1,5 +1,7 @@
 # 🧠 ragcore
 
+![RAG Expert System Hero](docs/images/hero.png)
+
 Production-grade, self-correcting RAG agent pipeline with Cross-Encoder reranking, asynchronous query execution (Celery + Redis), PostgreSQL audit logging, and a sleek Streamlit dashboard.
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
@@ -114,7 +116,7 @@ ragcore/
 ### 1. Configure the Environment
 Clone the repository and copy the environment template:
 ```bash
-git clone https://github.com/mohamednoorulnaseem/RAG-Powered-Domain-Expert-System.git ragcore
+git clone https://github.com/mohamednoorulnaseem/ragcore.git
 cd ragcore
 cp .env.example .env
 ```

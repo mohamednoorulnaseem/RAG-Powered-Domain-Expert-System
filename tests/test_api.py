@@ -79,7 +79,7 @@ class TestCoreComponents:
         from core.vector_store import VectorStore
         # Mock embedding service to avoid API calls
         with patch('core.embeddings.OpenAIEmbeddingService') as mock_service:
-            store = VectorStore(embedding_service=mock_service.return_value)
+            store = VectorStore(embedding_service=mock_service.return_value, persist_path="nonexistent_test_store.json")
             assert store.entries == []
             assert store.persist_path is not None
 
