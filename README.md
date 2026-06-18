@@ -1,4 +1,4 @@
-# 🧠 ragcore
+# 🧠 Self-Correcting_Agentic-_RAG-Pipeline- (ragcore)
 
 ![RAG Expert System Hero](docs/images/hero.png)
 
